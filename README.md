@@ -8,14 +8,15 @@ flowchart LR
         API3["Binance API"]
     end
 
-    %% Потоковая интеграция
     Sources-->Kafka[(Kafka)]
 
     %% OLTP
-    Kafka-->OLTP[(PostgreSQL (OLTP))]
+    Kafka-->OLTP[(PostgreSQL_OLTP)]
 
     %% DWH загрузка и Data Vault
-    OLTP-->Airbyte-->Staging[/"Staging Area"/]
+    OLTP-->Airbyte
+    Airbyte-->Staging[/"Staging Area"/]
+
     subgraph Greenplum["Greenplum DWH"]
         direction TB
         Staging-->RawVault["Raw Vault (Hubs, Links, Satellites)"]
@@ -23,7 +24,7 @@ flowchart LR
     end
 
     %% Трансформации dbt
-    Airflow-->dbt[("dbt")]
+    Airflow[("Apache Airflow")]-->dbt[("dbt")]
     dbt-->Staging
     dbt-->RawVault
     dbt-->BusinessVault
@@ -35,20 +36,19 @@ flowchart LR
     ClickHouse-->Superset[("Apache Superset")]
 
     %% ML и потоковые сигналы
-    RawVault-- Исторические данные -->Spark["Spark (Training & Inference)"]
+    RawVault-- "Исторические данные" -->Spark["Spark (Training & Inference)"]
     Spark-->MLflow["MLflow (Model Registry)"]
     MLflow-->Spark
-    Spark-- Предикты / сигналы -->BusinessVault
-    Spark-- Предикты / сигналы -->ClickHouse
+    Spark-- "Предикты/Сигналы" -->BusinessVault
+    Spark-- "Предикты/Сигналы" -->ClickHouse
 
     %% Оркестрация
-    Airflow[("Apache Airflow")]
     Airflow-->Airbyte
     Airflow-->Spark
     Airflow-->MLflow
     Airflow-->dbt
 
-    %% Документация, Observability
+    %% Документация и Observability
     dbt-->dbtDocs["dbt docs"]
     Airflow-->Prometheus["Prometheus"]
     Prometheus-->Grafana["Grafana"]
@@ -60,19 +60,11 @@ flowchart LR
     Terraform-->K8s
     Ansible-->K8s
 
-    %% Подписи
     note right of GitHubActions: CI/CD для кода, моделей, инфры
     note bottom of Superset: Визуализация дашбордов
 
-    %% Безопасность
-    Airflow-->AirflowConnections["Airflow Connections (Secrets)"]
-    subgraph GreenplumRoles["Роли и привилегии в Greenplum"]
-        RawVault
-        BusinessVault
-    end
-    GreenplumRoles:::auth
-
     classDef auth fill=#f0f0f0,stroke=#333,stroke-width=1px
+
 
 
 Описание:
